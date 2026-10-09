@@ -2,562 +2,1004 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#080d16">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080d16">
+  <meta name="description" content="NewVis — simulador de óculos inteligentes para acessibilidade.">
+  <title>NewVis | Visão Inteligente</title>
 
-    <title>NewVis | Visão inteligente</title>
+  <style>
+    :root {
+      --bg: #080d16;
+      --panel: #101927;
+      --panel-light: #152235;
+      --cyan: #55f2df;
+      --blue: #438cff;
+      --text: #edf5ff;
+      --muted: #91a2b8;
+      --border: rgba(130, 166, 202, 0.2);
+    }
 
-    <style>
-        :root {
-            --bg: #080d16;
-            --panel: #101a29;
-            --cyan: #55f2df;
-            --blue: #61a8ff;
-            --text: #edf7ff;
-            --muted: #8da1b8;
-            --border: rgba(132, 185, 220, .15);
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        * {
-            box-sizing: border-box;
-        }
+    html {
+      min-height: 100%;
+      background: var(--bg);
+    }
 
-        body {
-            margin: 0;
-            min-height: 100vh;
-            background:
-                radial-gradient(ellipse at 50% 0%,
-                    rgba(29, 111, 137, .19), transparent 50%),
-                var(--bg);
-            color: var(--text);
-            font-family: Inter, system-ui, Arial, sans-serif;
-        }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at top, #122438 0%, transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
 
-        .app {
-            width: min(100% - 16px, 900px);
-            margin: auto;
-            padding: 20px 0 36px;
-        }
+    button {
+      font: inherit;
+    }
 
-        header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 32px;
-        }
+    .app {
+      width: min(100% - 16px, 900px);
+      margin: auto;
+      padding: 20px 0 36px;
+    }
 
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+    /* CABEÇALHO */
 
-        .logo {
-            display: grid;
-            place-items: center;
-            width: 44px;
-            height: 44px;
-            border: 1px solid rgba(85, 242, 223, .45);
-            border-radius: 14px;
-            color: var(--cyan);
-            font-size: 23px;
-            box-shadow: 0 0 25px rgba(85, 242, 223, .08);
-        }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
 
-        .brand h1 {
-            margin: 0;
-            font-size: 22px;
-            letter-spacing: 2px;
-        }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
-        .brand p {
-            margin: 4px 0 0;
-            color: var(--muted);
-            font-size: 12px;
-        }
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(85, 242, 223, 0.5);
+      border-radius: 14px;
+      color: var(--cyan);
+      background: rgba(85, 242, 223, 0.08);
+      font-size: 23px;
+      font-weight: bold;
+      box-shadow: 0 0 25px rgba(85, 242, 223, 0.07);
+    }
 
-        .badge {
-            border: 1px solid var(--border);
-            border-radius: 30px;
-            padding: 8px 11px;
-            color: var(--muted);
-            font-size: 10px;
-            letter-spacing: 1px;
-        }
+    .brand-name {
+      margin: 0;
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: 2px;
+    }
 
-        .dot {
-            display: inline-block;
-            width: 7px;
-            height: 7px;
-            margin-right: 6px;
-            border-radius: 50%;
-            background: #8292a6;
-        }
+    .brand-subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 2px;
+    }
 
-        .dot.active {
-            background: var(--cyan);
-            box-shadow: 0 0 10px var(--cyan);
-        }
+    .system-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      color: var(--muted);
+      background: rgba(16, 25, 39, 0.7);
+      font-size: 10px;
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
 
-        .intro {
-            margin-bottom: 22px;
-        }
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #8291a4;
+    }
 
-        .eyebrow {
-            color: var(--cyan);
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
+    .dot.active {
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+    }
 
-        .intro h2 {
-            margin: 10px 0;
-            font-size: clamp(28px, 6vw, 39px);
-            letter-spacing: -1.5px;
-            line-height: 1.12;
-        }
+    /* INTRODUÇÃO */
 
-        .intro h2 span {
-            color: var(--cyan);
-        }
+    .intro {
+      margin-bottom: 24px;
+    }
 
-        .intro p {
-            max-width: 460px;
-            color: var(--muted);
-            font-size: 14px;
-            line-height: 1.7;
-        }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--cyan);
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
 
-        .camera-card {
-            overflow: hidden;
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            background: linear-gradient(145deg, #142235, #0b111c);
-            box-shadow: 0 18px 60px rgba(0, 0, 0, .25);
-        }
+    .intro h1 {
+      max-width: 700px;
+      margin: 0;
+      font-size: clamp(28px, 5vw, 43px);
+      line-height: 1.12;
+      letter-spacing: -1.2px;
+    }
 
-        .camera-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 17px 18px;
-            border-bottom: 1px solid var(--border);
-            font-size: 11px;
-            letter-spacing: 1px;
-        }
+    .intro h1 span {
+      color: var(--cyan);
+    }
 
-        .camera-head span:last-child {
-            color: var(--muted);
-        }
+    .intro p {
+      max-width: 650px;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
 
-        .viewport {
-            position: relative;
-            display: grid;
-            place-items: center;
-            width: 100%;
-            aspect-ratio: 3 / 4;
-            min-height: 380px;
-            max-height: 75vh;
-            overflow: hidden;
-            background:
-                linear-gradient(rgba(85, 242, 223, .035) 1px,
-                    transparent 1px),
-                linear-gradient(90deg, rgba(85, 242, 223, .035) 1px,
-                    transparent 1px),
-                #090f19;
-            background-size: 26px 26px;
-        }
+    /* PAINEL DA CÂMERA */
 
-        video {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: none;
-        }
+    .camera-card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--panel);
+      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.2);
+    }
 
-        .viewport.on video {
-            display: block;
-        }
+    .camera-head {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: 1.5px;
+    }
 
-        .scanline {
-            display: none;
-            position: absolute;
-            z-index: 2;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg,
-                transparent, var(--cyan), transparent);
-            box-shadow: 0 0 15px var(--cyan);
-            animation: scan 4s linear infinite;
-            pointer-events: none;
-        }
+    .camera-head span:last-child {
+      color: var(--muted);
+      text-align: right;
+    }
 
-        .viewport.on .scanline {
-            display: block;
-        }
+    .viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3 / 4;
+      min-height: 380px;
+      max-height: 75vh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(ellipse at center, #122b3a 0%, #0a1421 70%);
+    }
 
-        @keyframes scan {
-            from { top: 0; }
-            to { top: 100%; }
-        }
+    video {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+    }
 
-        .corners {
-            position: absolute;
-            z-index: 3;
-            inset: 16px;
-            pointer-events: none;
-            background:
-                linear-gradient(var(--cyan), var(--cyan)) left top / 25px 2px no-repeat,
-                linear-gradient(var(--cyan), var(--cyan)) left top / 2px 25px no-repeat,
-                linear-gradient(var(--cyan), var(--cyan)) right top / 25px 2px no-repeat,
-                linear-gradient(var(--cyan), var(--cyan)) right top / 2px 25px no-repeat,
-                linear-gradient(var(--cyan), var(--cyan)) left bottom / 25px 2px no-repeat,
-                linear-gradient(var(--cyan), var(--cyan)) left bottom / 2px 25px no-repeat,
-                linear-gradient(var(--cyan), var(--cyan)) right bottom / 25px 2px no-repeat,
-                linear-gradient(var(--cyan), var(--cyan)) right bottom / 2px 25px no-repeat;
-            opacity: .8;
-        }
+    .viewport.on video {
+      opacity: 1;
+    }
 
-        .placeholder {
-            text-align: center;
-            padding: 20px;
-            color: var(--muted);
-        }
+    .placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 24px;
+      text-align: center;
+    }
 
-        .lens-icon {
-            display: grid;
-            place-items: center;
-            width: 74px;
-            height: 74px;
-            margin: 0 auto 18px;
-            border: 1px solid rgba(85, 242, 223, .35);
-            border-radius: 50%;
-            color: var(--cyan);
-            font-size: 32px;
-            box-shadow: 0 0 35px rgba(85, 242, 223, .08),
-                inset 0 0 20px rgba(85, 242, 223, .06);
-        }
+    .viewport.on .placeholder {
+      display: none;
+    }
 
-        .placeholder strong {
-            display: block;
-            margin-bottom: 8px;
-            color: var(--text);
-            font-size: 14px;
-        }
+    .placeholder-icon {
+      width: 86px;
+      height: 86px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(85, 242, 223, 0.35);
+      border-radius: 50%;
+      color: var(--cyan);
+      font-size: 34px;
+      background: rgba(85, 242, 223, 0.04);
+      box-shadow: 0 0 45px rgba(85, 242, 223, 0.08);
+    }
 
-        .placeholder p {
-            margin: 0;
-            font-size: 12px;
-            line-height: 1.6;
-        }
+    .placeholder h2 {
+      margin: 0;
+      font-size: 18px;
+    }
 
-        .viewport.on .placeholder {
-            display: none;
-        }
+    .placeholder p {
+      max-width: 300px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
 
-        .camera-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 16px;
-            border-top: 1px solid var(--border);
-        }
+    /* DETALHES VISUAIS DO VISOR */
 
-        .status {
-            font-size: 12px;
-            color: var(--muted);
-        }
+    .scanline {
+      position: absolute;
+      z-index: 2;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      opacity: 0;
+      pointer-events: none;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        var(--cyan),
+        transparent
+      );
+      box-shadow: 0 0 16px rgba(85, 242, 223, 0.7);
+    }
 
-        .status strong {
-            display: block;
-            margin-bottom: 4px;
-            color: var(--text);
-            font-size: 13px;
-        }
+    .viewport.on .scanline {
+      opacity: 0.65;
+      animation: scan 5s linear infinite;
+    }
 
-        button {
-            border: 0;
-            border-radius: 12px;
-            padding: 13px 17px;
-            font: inherit;
-            font-size: 12px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: transform .2s, opacity .2s;
-        }
+    @keyframes scan {
+      from { top: 0; }
+      to { top: 100%; }
+    }
 
-        button:active {
-            transform: scale(.97);
-        }
+    .corners {
+      position: absolute;
+      z-index: 3;
+      inset: 20px;
+      pointer-events: none;
+      opacity: 0.8;
+      background:
+        linear-gradient(var(--cyan), var(--cyan)) left top / 26px 2px no-repeat,
+        linear-gradient(var(--cyan), var(--cyan)) left top / 2px 26px no-repeat,
+        linear-gradient(var(--cyan), var(--cyan)) right top / 26px 2px no-repeat,
+        linear-gradient(var(--cyan), var(--cyan)) right top / 2px 26px no-repeat,
+        linear-gradient(var(--cyan), var(--cyan)) left bottom / 26px 2px no-repeat,
+        linear-gradient(var(--cyan), var(--cyan)) left bottom / 2px 26px no-repeat,
+        linear-gradient(var(--cyan), var(--cyan)) right bottom / 26px 2px no-repeat,
+        linear-gradient(var(--cyan), var(--cyan)) right bottom / 2px 26px no-repeat;
+    }
 
-        button:disabled {
-            opacity: .45;
-            cursor: not-allowed;
-        }
+    /* INFORMAÇÕES SIMULADAS SOBRE A IMAGEM */
 
-        #start {
-            color: #061513;
-            background: var(--cyan);
-            box-shadow: 0 0 22px rgba(85, 242, 223, .12);
-        }
+    .ai-overlay {
+      position: absolute;
+      z-index: 4;
+      top: 75px;
+      left: 24px;
+      right: 24px;
+      display: none;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+      pointer-events: none;
+    }
 
-        #stop {
-            color: var(--text);
-            background: #263448;
-        }
+    body.camera-mode .ai-overlay {
+      display: flex;
+    }
 
-        .modules {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 16px;
-        }
+    .ai-message {
+      max-width: 100%;
+      padding: 12px 16px;
+      border: 1px solid rgba(85, 242, 223, 0.55);
+      border-radius: 12px;
+      background: rgba(5, 18, 27, 0.78);
+      color: white;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 0 24px rgba(85, 242, 223, 0.08);
+    }
 
-        .module {
-            padding: 15px 12px;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            background: rgba(16, 26, 41, .7);
-        }
+    .ai-message strong {
+      color: var(--cyan);
+      letter-spacing: 1px;
+    }
 
-        .module .symbol {
-            margin-bottom: 12px;
-            color: var(--cyan);
-            font-size: 20px;
-        }
+    .ai-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 8px;
+      color: var(--cyan);
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
 
-        .module strong {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 12px;
-        }
+    .ai-tag::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+    }
 
-        .module p {
-            margin: 0;
-            color: var(--muted);
-            font-size: 10px;
-            line-height: 1.5;
-        }
+    /* CONTROLES */
 
-        .notice {
-            margin-top: 20px;
-            color: #71859b;
-            font-size: 11px;
-            line-height: 1.7;
-            text-align: center;
-        }
+    .camera-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 18px;
+      border-top: 1px solid var(--border);
+    }
 
-        @media (max-width: 420px) {
-            .app {
-                width: calc(100% - 22px);
-                padding-top: 20px;
-            }
+    .status {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 0;
+    }
 
-            header {
-                margin-bottom: 26px;
-            }
+    .status strong {
+      color: var(--text);
+      font-size: 13px;
+    }
 
-            .badge {
-                font-size: 9px;
-                padding: 7px;
-            }
+    .status span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
 
-            .camera-footer {
-                align-items: stretch;
-                flex-direction: column;
-            }
+    .controls {
+      display: flex;
+      gap: 8px;
+    }
 
-            .camera-footer button {
-                width: 100%;
-            }
+    button {
+      min-height: 42px;
+      padding: 0 16px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      transition:
+        transform 0.2s ease,
+        background 0.2s ease,
+        opacity 0.2s ease;
+    }
 
-            .modules {
-                gap: 7px;
-            }
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
 
-            .module {
-                padding: 12px 9px;
-            }
-        }
+    button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
 
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                animation: none !important;
-                transition: none !important;
-            }
-        }
-    </style>
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    #start {
+      color: #06131a;
+      background: var(--cyan);
+    }
+
+    #start:hover:not(:disabled) {
+      background: #8afff1;
+    }
+
+    #stop {
+      color: var(--text);
+      border-color: var(--border);
+      background: var(--panel-light);
+    }
+
+    /* MÓDULOS INFORMATIVOS */
+
+    .section-heading {
+      margin: 30px 0 14px;
+      font-size: 13px;
+      letter-spacing: 1.5px;
+    }
+
+    .modules {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .module {
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      background: rgba(16, 25, 39, 0.78);
+    }
+
+    .module-icon {
+      margin-bottom: 13px;
+      color: var(--cyan);
+      font-size: 22px;
+    }
+
+    .module h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .module p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .notice {
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.7;
+      text-align: center;
+    }
+
+    /* MODO IMERSIVO: CÂMERA EM TELA CHEIA */
+
+    body.camera-mode {
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
+    body.camera-mode .app {
+      width: 100%;
+      max-width: none;
+      height: 100vh;
+      height: 100dvh;
+      padding: 0;
+      margin: 0;
+    }
+
+    body.camera-mode header,
+    body.camera-mode .intro,
+    body.camera-mode .section-heading,
+    body.camera-mode .modules,
+    body.camera-mode .notice {
+      display: none;
+    }
+
+    body.camera-mode .camera-card {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      border: none;
+      border-radius: 0;
+      background: #080d16;
+      box-shadow: none;
+    }
+
+    body.camera-mode .camera-head {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 5;
+      padding: 18px 20px;
+      border: none;
+      background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.65),
+        transparent
+      );
+    }
+
+    body.camera-mode .camera-head span:first-child {
+      color: var(--cyan);
+    }
+
+    body.camera-mode .camera-head span:last-child {
+      color: white;
+    }
+
+    body.camera-mode .viewport {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      max-height: none;
+      aspect-ratio: auto;
+      background: #080d16;
+    }
+
+    body.camera-mode video {
+      object-fit: cover;
+    }
+
+    body.camera-mode .corners {
+      inset: 24px;
+    }
+
+    body.camera-mode .camera-footer {
+      position: absolute;
+      z-index: 6;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 24px 20px;
+      padding-bottom: max(24px, env(safe-area-inset-bottom));
+      border: none;
+      background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.82),
+        transparent
+      );
+    }
+
+    body.camera-mode .status {
+      flex: 1;
+      min-width: 130px;
+      color: white;
+    }
+
+    body.camera-mode .status strong {
+      color: var(--cyan);
+    }
+
+    body.camera-mode .status span {
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    body.camera-mode #start {
+      display: none;
+    }
+
+    body.camera-mode #stop {
+      color: white;
+      border-color: rgba(85, 242, 223, 0.4);
+      background: rgba(20, 35, 48, 0.9);
+    }
+
+    /* RESPONSIVIDADE */
+
+    @media (max-width: 600px) {
+      .app {
+        padding-top: 14px;
+      }
+
+      header {
+        margin-bottom: 22px;
+      }
+
+      .brand-name {
+        font-size: 18px;
+      }
+
+      .brand-icon {
+        width: 40px;
+        height: 40px;
+      }
+
+      .system-badge {
+        padding: 8px 9px;
+        font-size: 9px;
+      }
+
+      .intro h1 {
+        font-size: 32px;
+      }
+
+      .viewport {
+        aspect-ratio: 3 / 4;
+        min-height: 360px;
+        max-height: 70vh;
+      }
+
+      .camera-footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .controls {
+        width: 100%;
+      }
+
+      .controls button {
+        flex: 1;
+      }
+
+      .modules {
+        grid-template-columns: 1fr;
+      }
+
+      .module {
+        padding: 15px;
+      }
+
+      .module-icon {
+        margin-bottom: 8px;
+      }
+
+      body.camera-mode .camera-footer {
+        gap: 12px;
+      }
+
+      body.camera-mode .status {
+        flex-basis: 100%;
+      }
+
+      body.camera-mode #stop {
+        width: 100%;
+      }
+
+      body.camera-mode .ai-overlay {
+        top: 70px;
+        left: 18px;
+        right: 18px;
+      }
+
+      body.camera-mode .camera-head {
+        padding: 16px 18px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .system-badge {
+        max-width: 120px;
+        white-space: normal;
+      }
+
+      .camera-head {
+        font-size: 9px;
+        letter-spacing: 1px;
+      }
+
+      .ai-message {
+        padding: 10px 12px;
+        font-size: 12px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 
 <body>
-    <main class="app">
-        <header>
-            <div class="brand">
-                <div class="logo">◉</div>
-                <div>
-                    <h1>NewVis</h1>
-                    <p>Assistive Intelligence</p>
-                </div>
-            </div>
+  <main class="app">
 
-            <div class="badge">
-                <span class="dot" id="dot"></span>
-                <span id="badgeText">SISTEMA PRONTO</span>
-            </div>
-        </header>
+    <!-- CABEÇALHO -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">N</div>
+        <div>
+          <p class="brand-name">NEWVIS</p>
+          <div class="brand-subtitle">SMART ACCESSIBILITY</div>
+        </div>
+      </div>
 
-        <section class="intro">
-            <div class="eyebrow">Tecnologia assistiva</div>
-            <h2>Uma nova forma de<br><span>perceber o mundo.</span></h2>
-            <p>
-                Uma experiência experimental de visão computacional
-                para ampliar o acesso à informação.
-            </p>
-        </section>
+      <div class="system-badge">
+        <span class="dot" id="dot"></span>
+        <span id="badgeText">SISTEMA PRONTO</span>
+      </div>
+    </header>
 
-        <section class="camera-card">
-            <div class="camera-head">
-                <span>VISOR INTELIGENTE</span>
-                <span id="cameraLabel">CAM 01 · INATIVA</span>
-            </div>
+    <!-- APRESENTAÇÃO -->
+    <section class="intro">
+      <p class="eyebrow">TECNOLOGIA ASSISTIVA · PROTÓTIPO DIGITAL</p>
 
-            <div class="viewport" id="viewport">
-                <video id="camera" autoplay playsinline muted></video>
-                <div class="scanline"></div>
-                <div class="corners"></div>
+      <h1>
+        Uma nova forma de<br>
+        <span>perceber o mundo.</span>
+      </h1>
 
-                <div class="placeholder">
-                    <div class="lens-icon">◎</div>
-                    <strong>Aguardando inicialização</strong>
-                    <p>Ative a câmera para iniciar<br>o visor experimental.</p>
-                </div>
-            </div>
+      <p>
+        Explore a proposta do NewVis: um conceito de óculos inteligentes
+        que busca ampliar o acesso à informação por meio de recursos
+        tecnológicos de acessibilidade.
+      </p>
+    </section>
 
-            <div class="camera-footer">
-                <div class="status" aria-live="polite">
-                    <strong id="statusTitle">Sistema em espera</strong>
-                    <span id="statusText">A câmera está desligada.</span>
-                </div>
+    <!-- CÂMERA -->
+    <section class="camera-card">
 
-                <button id="start">◎ &nbsp; Ativar câmera</button>
-                <button id="stop" disabled>Desativar</button>
-            </div>
-        </section>
+      <div class="camera-head">
+        <span>VISOR INTELIGENTE</span>
+        <span id="cameraLabel">CAM 01 · INATIVA</span>
+      </div>
 
-        <section class="modules">
-            <article class="module">
-                <div class="symbol">⌕</div>
-                <strong>Visão</strong>
-                <p>Base para futura detecção de rostos e objetos.</p>
-            </article>
+      <div class="viewport" id="viewport">
 
-            <article class="module">
-                <div class="symbol">▤</div>
-                <strong>Informação</strong>
-                <p>Interface preparada para apresentar descrições.</p>
-            </article>
+        <video
+          id="camera"
+          autoplay
+          playsinline
+          muted
+          aria-label="Imagem ao vivo da câmera"
+        ></video>
 
-            <article class="module">
-                <div class="symbol">♫</div>
-                <strong>Acessibilidade</strong>
-                <p>Base para recursos de voz e leitura de textos.</p>
-            </article>
-        </section>
+        <div class="scanline"></div>
+        <div class="corners"></div>
 
-        <p class="notice">
-            Protótipo experimental do projeto NewVis.<br>
-            A câmera só é ativada mediante sua autorização.
-            Nesta versão, ainda não há reconhecimento por inteligência artificial.
+        <!-- INFORMAÇÕES SOBREPOSTAS À IMAGEM -->
+        <div class="ai-overlay" id="aiOverlay">
+          <div class="ai-message">
+            <strong>NEWVIS VISION</strong>
+            <br>
+            Visor inteligente inicializado.
+            <br>
+            <span class="ai-tag">SIMULAÇÃO DE INTERFACE</span>
+          </div>
+
+          <div class="ai-message">
+            <strong>ACESSIBILIDADE</strong>
+            <br>
+            Interface visual de demonstração ativa.
+          </div>
+        </div>
+
+        <!-- TELA INICIAL -->
+        <div class="placeholder">
+          <div class="placeholder-icon" aria-hidden="true">◎</div>
+
+          <h2>Visor aguardando ativação</h2>
+
+          <p>
+            Ative a câmera para visualizar a simulação da interface
+            inteligente do NewVis.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- STATUS E BOTÕES -->
+      <div class="camera-footer">
+
+        <div class="status" aria-live="polite">
+          <strong id="statusTitle">Sistema em espera</strong>
+          <span id="statusText">A câmera está desligada.</span>
+        </div>
+
+        <div class="controls">
+          <button id="start" type="button">
+            ◎ &nbsp; Ativar câmera
+          </button>
+
+          <button id="stop" type="button" disabled>
+            Desativar
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- MÓDULOS -->
+    <h2 class="section-heading">RECURSOS DO CONCEITO</h2>
+
+    <section class="modules">
+
+      <article class="module">
+        <div class="module-icon" aria-hidden="true">⌖</div>
+        <h3>Visão computacional</h3>
+        <p>
+          Conceito de análise visual para auxiliar na interpretação
+          do ambiente e de informações ao redor.
         </p>
-    </main>
+      </article>
 
-    <script>
-        const camera = document.getElementById("camera");
-        const viewport = document.getElementById("viewport");
-        const statusTitle = document.getElementById("statusTitle");
-        const statusText = document.getElementById("statusText");
-        const cameraLabel = document.getElementById("cameraLabel");
-        const badgeText = document.getElementById("badgeText");
-        const dot = document.getElementById("dot");
-        const start = document.getElementById("start");
-        const stop = document.getElementById("stop");
+      <article class="module">
+        <div class="module-icon" aria-hidden="true">▤</div>
+        <h3>Leitura de informações</h3>
+        <p>
+          Proposta de reconhecimento de textos para facilitar o
+          acesso a conteúdos escritos.
+        </p>
+      </article>
 
-        let stream = null;
+      <article class="module">
+        <div class="module-icon" aria-hidden="true">◉</div>
+        <h3>Interface assistiva</h3>
+        <p>
+          Exibição de informações em uma interface visual inspirada
+          na experiência de um visor inteligente.
+        </p>
+      </article>
 
-        start.addEventListener("click", async () => {
-            if (!navigator.mediaDevices?.getUserMedia) {
-                statusTitle.textContent = "Câmera indisponível";
-                statusText.textContent =
-                    "Abra o site por HTTPS e tente novamente.";
-                return;
-            }
+    </section>
 
-            start.disabled = true;
-            statusTitle.textContent = "Solicitando acesso...";
-            statusText.textContent =
-                "Autorize a câmera quando o navegador perguntar.";
+    <p class="notice">
+      Demonstração conceitual do projeto NewVis. A câmera exibe imagens
+      em tempo real, mas as informações sobrepostas são ilustrativas e
+      não representam análises reais de inteligência artificial.
+      O vídeo é processado localmente nesta página e não é enviado
+      por este código a um servidor.
+    </p>
 
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { ideal: "environment" } },
-                    audio: false
-                });
+  </main>
 
-                camera.srcObject = stream;
-                await camera.play();
+  <script>
+    const camera = document.getElementById("camera");
+    const viewport = document.getElementById("viewport");
 
-                viewport.classList.add("on");
-                statusTitle.textContent = "Câmera ativa";
-                statusText.textContent =
-                    "Transmissão de vídeo em funcionamento.";
-                cameraLabel.textContent = "CAM 01 · ATIVA";
-                badgeText.textContent = "CÂMERA ATIVA";
-                dot.classList.add("active");
+    const statusTitle = document.getElementById("statusTitle");
+    const statusText = document.getElementById("statusText");
+    const cameraLabel = document.getElementById("cameraLabel");
 
-                start.textContent = "Câmera ativada";
-                stop.disabled = false;
-            } catch (erro) {
-                let mensagem = "Não foi possível acessar a câmera.";
+    const badgeText = document.getElementById("badgeText");
+    const dot = document.getElementById("dot");
 
-                if (erro.name === "NotAllowedError") {
-                    mensagem = "Permissão negada. Autorize a câmera no navegador.";
-                } else if (erro.name === "NotFoundError") {
-                    mensagem = "Nenhuma câmera compatível foi encontrada.";
-                } else if (erro.name === "NotReadableError") {
-                    mensagem = "A câmera pode estar sendo usada por outro aplicativo.";
-                }
+    const start = document.getElementById("start");
+    const stop = document.getElementById("stop");
 
-                statusTitle.textContent = "Não foi possível iniciar";
-                statusText.textContent = mensagem;
-                start.disabled = false;
-            }
+    let stream = null;
+
+    // ATIVAR A CÂMERA
+    start.addEventListener("click", async () => {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        statusTitle.textContent = "Câmera indisponível";
+        statusText.textContent =
+          "Abra o site por HTTPS e tente novamente.";
+        return;
+      }
+
+      start.disabled = true;
+
+      statusTitle.textContent = "Solicitando acesso...";
+      statusText.textContent =
+        "Autorize a câmera quando o navegador perguntar.";
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" }
+          },
+          audio: false
         });
 
-        stop.addEventListener("click", () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
+        camera.srcObject = stream;
+        await camera.play();
 
-            stream = null;
-            camera.srcObject = null;
-            viewport.classList.remove("on");
+        // Ativa o visor e o modo de tela cheia
+        viewport.classList.add("on");
+        document.body.classList.add("camera-mode");
 
-            statusTitle.textContent = "Sistema em espera";
-            statusText.textContent = "A câmera está desligada.";
-            cameraLabel.textContent = "CAM 01 · INATIVA";
-            badgeText.textContent = "SISTEMA PRONTO";
-            dot.classList.remove("active");
+        statusTitle.textContent = "Visor inteligente ativo";
+        statusText.textContent =
+          "Interface de demonstração em funcionamento.";
 
-            start.disabled = false;
-            start.textContent = "◎  Ativar câmera";
-            stop.disabled = true;
-        });
-    </script>
+        cameraLabel.textContent = "CAM 01 · ATIVA";
+        badgeText.textContent = "CÂMERA ATIVA";
+        dot.classList.add("active");
+
+        start.textContent = "Câmera ativada";
+        stop.disabled = false;
+
+      } catch (erro) {
+        let mensagem = "Não foi possível acessar a câmera.";
+
+        if (erro.name === "NotAllowedError") {
+          mensagem =
+            "Permissão negada. Autorize a câmera nas configurações do navegador.";
+        } else if (erro.name === "NotFoundError") {
+          mensagem =
+            "Nenhuma câmera compatível foi encontrada.";
+        } else if (erro.name === "NotReadableError") {
+          mensagem =
+            "A câmera pode estar sendo usada por outro aplicativo.";
+        } else if (erro.name === "OverconstrainedError") {
+          mensagem =
+            "Não foi possível selecionar uma câmera compatível.";
+        }
+
+        // Encerra qualquer transmissão iniciada parcialmente
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
+
+        stream = null;
+        camera.srcObject = null;
+
+        viewport.classList.remove("on");
+        document.body.classList.remove("camera-mode");
+
+        statusTitle.textContent = "Não foi possível iniciar";
+        statusText.textContent = mensagem;
+
+        cameraLabel.textContent = "CAM 01 · INATIVA";
+        badgeText.textContent = "SISTEMA PRONTO";
+        dot.classList.remove("active");
+
+        start.disabled = false;
+      }
+    });
+
+    // DESATIVAR A CÂMERA E VOLTAR À PÁGINA INICIAL
+    stop.addEventListener("click", () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+
+      stream = null;
+      camera.srcObject = null;
+
+      viewport.classList.remove("on");
+      document.body.classList.remove("camera-mode");
+
+      statusTitle.textContent = "Sistema em espera";
+      statusText.textContent = "A câmera está desligada.";
+
+      cameraLabel.textContent = "CAM 01 · INATIVA";
+      badgeText.textContent = "SISTEMA PRONTO";
+      dot.classList.remove("active");
+
+      start.disabled = false;
+      start.textContent = "◎  Ativar câmera";
+      stop.disabled = true;
+    });
+
+    // Encerra a câmera caso a página seja fechada ou abandonada
+    window.addEventListener("pagehide", () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    });
+  </script>
+
 </body>
 </html>
