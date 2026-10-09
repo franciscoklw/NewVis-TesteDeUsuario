@@ -13,10 +13,11 @@ const dot = document.getElementById("dot");
 const ocrResult = document.getElementById("ocrResult");
 const ocrText = document.getElementById("ocrText");
 
-let stream = null;
-let worker = null;
-let workerPromise = null;
+// API Python com EasyOCR.
+// Endereço válido para testes no mesmo computador.
+const API_URL = "http://127.0.0.1:8000/reconhecer";
 
+let stream = null;
 let cameraActive = false;
 let readingEnabled = false;
 let processing = false;
@@ -25,6 +26,7 @@ let lastSpoken = "";
 let recognitionTimer = null;
 let speechQueue = [];
 let isSpeaking = false;
+let requestId = 0;
 
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
@@ -110,14 +112,16 @@ async function activateCamera() {
 }
 
 function stopCamera() {
-    readingEnabled = false;
     cameraActive = false;
+    readingEnabled = false;
+    requestId++;
 
     clearTimeout(recognitionTimer);
     recognitionTimer = null;
 
     speechQueue = [];
     isSpeaking = false;
+    lastSpoken = "";
 
     if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
@@ -144,38 +148,6 @@ function stopCamera() {
 
     ocrText.textContent = "Aguardando texto...";
     ocrResult.classList.remove("visible");
-
-    lastSpoken = "";
-}
-
-async function initializeOCR() {
-    if (worker) return worker;
-    if (workerPromise) return workerPromise;
-
-    workerPromise = (async () => {
-        if (!window.Tesseract) {
-            throw new Error(
-                "Tesseract.js não foi carregado. Verifica a conexão."
-            );
-        }
-
-        const newWorker = await Tesseract.createWorker("por+eng");
-
-        await newWorker.setParameters({
-            tessedit_pageseg_mode: "6",
-            preserve_interword_spaces: "1"
-        });
-
-        worker = newWorker;
-        return worker;
-    })();
-
-    try {
-        return await workerPromise;
-    } catch (error) {
-        workerPromise = null;
-        throw error;
-    }
 }
 
 function prepareImage() {
@@ -194,6 +166,24 @@ function prepareImage() {
     canvas.height = Math.round(height * scale);
 
     ctx.drawImage(camera, 0, 0, canvas.width, canvas.height);
+}
+
+function canvasToBlob() {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob(
+            blob => {
+                if (blob) {
+                    resolve(blob);
+                } else {
+                    reject(
+                        new Error("Não foi possível preparar a imagem.")
+                    );
+                }
+            },
+            "image/jpeg",
+            0.90
+        );
+    });
 }
 
 function normalizeText(text) {
@@ -220,8 +210,6 @@ function speak(text) {
 
     lastSpoken = normalized;
 
-    // Evita enfileirar repetidamente o mesmo texto.
-    // Se já houver uma fala em andamento, guarda a nova.
     speechQueue = speechQueue.filter(
         item => normalizeText(item) !== normalized
     );
@@ -234,7 +222,6 @@ function speak(text) {
 function processSpeechQueue() {
     if (!readingEnabled || !cameraActive) return;
     if (isSpeaking || speechQueue.length === 0) return;
-
     if (!("speechSynthesis" in window)) return;
 
     const text = speechQueue.shift();
@@ -258,12 +245,13 @@ function processSpeechQueue() {
                 "Leitura ativa",
                 "Continuando a procurar novos textos."
             );
+
             processSpeechQueue();
         }
     };
 
-    utterance.onerror = event => {
-        console.error("Erro na síntese de voz:", event);
+    utterance.onerror = error => {
+        console.error("Erro na síntese de voz:", error);
 
         isSpeaking = false;
 
@@ -280,7 +268,7 @@ function processSpeechQueue() {
     window.speechSynthesis.speak(utterance);
 }
 
-function scheduleRecognition(delay = 800) {
+function scheduleRecognition(delay = 1500) {
     clearTimeout(recognitionTimer);
 
     if (!cameraActive || !readingEnabled) return;
@@ -293,34 +281,77 @@ async function recognizeText() {
 
     processing = true;
 
+    const currentRequest = requestId;
+
     try {
-        const ocr = await initializeOCR();
-
-        if (!cameraActive || !readingEnabled) return;
-
         prepareImage();
 
-        const result = await ocr.recognize(canvas);
+        const imagem = await canvasToBlob();
 
-        if (!cameraActive || !readingEnabled) return;
+        if (
+            !cameraActive ||
+            !readingEnabled ||
+            currentRequest !== requestId
+        ) {
+            return;
+        }
 
-        const text = result.data.text.trim();
-        const confidence = result.data.confidence;
+        const formData = new FormData();
+
+        formData.append("file", imagem, "captura.jpg");
+
+        setStatus(
+            "Reconhecendo texto...",
+            "Enviando a imagem para o EasyOCR."
+        );
+
+        const response = await fetch(API_URL, {
+            method: "POST",
+            body: formData
+        });
+
+        if (!response.ok) {
+            let detalhe = `Erro HTTP ${response.status}`;
+
+            try {
+                const erro = await response.json();
+                if (erro.detail) detalhe = erro.detail;
+            } catch {
+                // Mantém a mensagem HTTP caso não haja JSON.
+            }
+
+            throw new Error(detalhe);
+        }
+
+        const resultado = await response.json();
+
+        if (
+            !cameraActive ||
+            !readingEnabled ||
+            currentRequest !== requestId
+        ) {
+            return;
+        }
+
+        const text = (resultado.texto || "").trim();
+        const trechos = resultado.trechos || [];
 
         console.log(
             "Texto reconhecido:",
             text,
-            "| Confiança:",
-            confidence
+            "| Trechos:",
+            trechos.length,
+            "| Quantidade:",
+            resultado.quantidade
         );
 
         ocrText.textContent = text || "Nenhum texto detectado.";
         ocrResult.classList.add("visible");
 
-        if (text.length > 0) {
+        if (text) {
             setStatus(
                 "Texto detectado",
-                `Confiança do OCR: ${Math.round(confidence)}%.`
+                `${trechos.length} trechos reconhecidos pelo EasyOCR.`
             );
 
             speak(text);
@@ -333,15 +364,32 @@ async function recognizeText() {
     } catch (error) {
         console.error("Erro no reconhecimento:", error);
 
-        setStatus(
-            "Erro na leitura",
-            error.message || "Não foi possível reconhecer o texto."
-        );
+        if (
+            !cameraActive ||
+            !readingEnabled ||
+            currentRequest !== requestId
+        ) {
+            return;
+        }
+
+        const mensagem = error.message || "Falha no reconhecimento.";
+
+        if (
+            error instanceof TypeError &&
+            /fetch/i.test(mensagem)
+        ) {
+            setStatus(
+                "API indisponível",
+                "Confirme se o servidor Python está rodando e se o navegador permite a conexão."
+            );
+        } else {
+            setStatus("Erro na leitura", mensagem);
+        }
     } finally {
         processing = false;
 
         if (cameraActive && readingEnabled) {
-            scheduleRecognition(800);
+            scheduleRecognition(1500);
         }
     }
 }
@@ -371,7 +419,6 @@ function toggleReading() {
 
         readToggle.textContent = "Pausar leitura";
 
-        // Testa a voz diretamente após o toque do usuário.
         if ("speechSynthesis" in window) {
             window.speechSynthesis.cancel();
 
@@ -387,11 +434,13 @@ function toggleReading() {
 
         setStatus(
             "Iniciando leitura...",
-            "Preparando o reconhecimento de texto."
+            "Preparando o reconhecimento com EasyOCR."
         );
 
         scheduleRecognition(0);
     } else {
+        requestId++;
+
         clearTimeout(recognitionTimer);
         recognitionTimer = null;
 
