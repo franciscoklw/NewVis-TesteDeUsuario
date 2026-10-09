@@ -1,0 +1,167 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080d16">
+  <meta name="description" content="NewVis — simulador de óculos inteligentes para acessibilidade.">
+
+  <title>NewVis | Visão Inteligente</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"
+    defer>
+  </script>
+
+  <script src="script.js" defer></script>
+</head>
+
+<body>
+  <main class="app">
+
+    <header>
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">N</div>
+        <div>
+          <p class="brand-name">NEWVIS</p>
+          <div class="brand-subtitle">SMART ACCESSIBILITY</div>
+        </div>
+      </div>
+
+      <div class="system-badge">
+        <span class="dot" id="dot"></span>
+        <span id="badgeText">SISTEMA PRONTO</span>
+      </div>
+    </header>
+
+    <section class="intro">
+      <p class="eyebrow">TECNOLOGIA ASSISTIVA · PROTÓTIPO DIGITAL</p>
+
+      <h1>
+        Uma nova forma de<br>
+        <span>perceber o mundo.</span>
+      </h1>
+
+      <p>
+        Explore a proposta do NewVis: um conceito de óculos inteligentes
+        que busca ampliar o acesso à informação por meio de recursos
+        tecnológicos de acessibilidade.
+      </p>
+    </section>
+
+    <section class="camera-card">
+      <div class="camera-head">
+        <span>VISOR INTELIGENTE</span>
+        <span id="cameraLabel">CAM 01 · INATIVA</span>
+      </div>
+
+      <div class="viewport" id="viewport">
+        <video
+          id="camera"
+          autoplay
+          playsinline
+          muted
+          aria-label="Imagem ao vivo da câmera">
+        </video>
+
+        <div class="scanline"></div>
+        <div class="corners"></div>
+
+        <div class="ai-overlay">
+          <div class="ai-message">
+            <strong>NEWVIS VISION</strong><br>
+            Visor inteligente inicializado.<br>
+            <span class="ai-tag">SIMULAÇÃO DE INTERFACE</span>
+          </div>
+
+          <div class="ai-message">
+            <strong>ACESSIBILIDADE</strong><br>
+            Interface visual de demonstração ativa.
+          </div>
+
+          <div class="ocr-result" id="ocrResult" aria-live="polite">
+            <strong>TEXTO RECONHECIDO</strong>
+            <span id="ocrText">Aguardando texto...</span>
+          </div>
+        </div>
+
+        <div class="placeholder">
+          <div class="placeholder-icon" aria-hidden="true">◎</div>
+          <h2>Visor aguardando ativação</h2>
+          <p>
+            Ative a câmera para visualizar a simulação da interface
+            inteligente do NewVis.
+          </p>
+        </div>
+      </div>
+
+      <div class="camera-footer">
+        <div class="status" aria-live="polite">
+          <strong id="statusTitle">Sistema em espera</strong>
+          <span id="statusText">A câmera está desligada.</span>
+        </div>
+
+        <div class="controls">
+          <button id="start" type="button">
+            ◎ &nbsp; Ativar câmera
+          </button>
+
+          <button
+            id="readToggle"
+            type="button"
+            aria-pressed="false">
+            ▤ Ativar leitura
+          </button>
+
+          <button id="stop" type="button" disabled>
+            Desativar
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <h2 class="section-heading">RECURSOS DO CONCEITO</h2>
+
+    <section class="modules">
+      <article class="module">
+        <div class="module-icon" aria-hidden="true">⌖</div>
+        <h3>Visão computacional</h3>
+        <p>
+          Conceito de análise visual para auxiliar na interpretação
+          do ambiente e de informações ao redor.
+        </p>
+      </article>
+
+      <article class="module">
+        <div class="module-icon" aria-hidden="true">▤</div>
+        <h3>Leitura de informações</h3>
+        <p>
+          Reconhecimento experimental de textos para facilitar o
+          acesso a conteúdos escritos.
+        </p>
+      </article>
+
+      <article class="module">
+        <div class="module-icon" aria-hidden="true">◉</div>
+        <h3>Interface assistiva</h3>
+        <p>
+          Exibição de informações em uma interface visual inspirada
+          na experiência de um visor inteligente.
+        </p>
+      </article>
+    </section>
+
+    <p class="notice">
+      Demonstração conceitual do projeto NewVis. A câmera exibe imagens
+      em tempo real e a leitura de textos utiliza reconhecimento óptico
+      de caracteres (OCR). As demais informações sobrepostas são
+      ilustrativas e não representam análises reais de inteligência
+      artificial. O vídeo é processado localmente por este código.
+    </p>
+
+  </main>
+</body>
+</html>
