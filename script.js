@@ -1,56 +1,112 @@
 
 const camera = document.getElementById("camera");
-const viewport = document.getElementById("viewport");
+const startButton = document.getElementById("start");
+const stopButton = document.getElementById("stop");
+const readToggle = document.getElementById("readToggle");
 
 const statusTitle = document.getElementById("statusTitle");
 const statusText = document.getElementById("statusText");
 const cameraLabel = document.getElementById("cameraLabel");
-
 const badgeText = document.getElementById("badgeText");
 const dot = document.getElementById("dot");
-
-const start = document.getElementById("start");
-const stop = document.getElementById("stop");
-const readToggle = document.getElementById("readToggle");
-
 const ocrResult = document.getElementById("ocrResult");
 const ocrText = document.getElementById("ocrText");
 
 let stream = null;
-let ocrWorker = null;
-let workerPromise = null;
-let ocrBusy = false;
+let worker = null;
+let cameraActive = false;
 let readingEnabled = false;
-let readTimer = null;
-let readingSession = 0;
-
-let candidateText = "";
+let processing = false;
+let lastSpoken = "";
+let lastCandidate = "";
 let candidateCount = 0;
-let lastSpokenText = "";
 
-function normalizeText(text) {
-    return text
-        .toLocaleLowerCase("pt-BR")
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^\p{L}\p{N}]+/gu, " ")
-        .trim()
-        .replace(/\s+/g, " ");
+const canvas = document.createElement("canvas");
+const ctx = canvas.getContext("2d");
+
+function setStatus(title, message) {
+    if (statusTitle) statusTitle.textContent = title;
+    if (statusText) statusText.textContent = message;
 }
 
-function detectLanguage(text) {
-    const lower = ` ${text.toLocaleLowerCase("pt-BR")} `;
+function setBadge(text) {
+    if (badgeText) badgeText.textContent = text;
+}
 
-    const englishWords =
-        /\b(the|this|that|with|you|your|is|are|welcome|please|hello|world)\b/g;
+async function activateCamera() {
+    try {
+        if (cameraActive) return;
 
-    const portugueseWords =
-        /\b(de|que|com|para|voce|voces|uma|nao|ola|obrigado|bem-vindo|bem-vinda)\b/g;
+        setStatus("Ativando câmera...", "Solicitando acesso à câmera.");
+        setBadge("CONECTANDO");
 
-    const enCount = (lower.match(englishWords) || []).length;
-    const ptCount = (lower.match(portugueseWords) || []).length;
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: { ideal: "environment" }
+            },
+            audio: false
+        });
 
-    return enCount > ptCount ? "en-US" : "pt-BR";
+        camera.srcObject = stream;
+        await camera.play();
+
+        cameraActive = true;
+
+        if (cameraLabel) cameraLabel.textContent = "Câmera ativa";
+
+        setStatus("Câmera ativada", "Pronta para reconhecer textos.");
+        setBadge("CÂMERA ATIVA");
+
+        if (dot) dot.classList.add("active");
+
+    } catch (error) {
+        console.error("Erro ao ativar a câmera:", error);
+
+        setStatus(
+            "Não foi possível ativar a câmera",
+            "Verifique a permissão da câmera e tente novamente."
+        );
+
+        setBadge("ERRO");
+    }
+}
+
+function stopCamera() {
+    readingEnabled = false;
+    cameraActive = false;
+
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+
+    if (camera) {
+        camera.pause();
+        camera.srcObject = null;
+    }
+
+    if (dot) dot.classList.remove("active");
+    if (cameraLabel) cameraLabel.textContent = "Câmera desligada";
+
+    setStatus("Câmera desligada", "Ative a câmera para começar.");
+    setBadge("DESLIGADA");
+}
+
+async function initializeOCR() {
+    if (worker) return worker;
+
+    if (!window.Tesseract) {
+        throw new Error("Biblioteca Tesseract.js não carregada.");
+    }
+
+    worker = await Tesseract.createWorker("por+eng");
+
+    await worker.setParameters({
+        tessedit_pageseg_mode: "6",
+        preserve_interword_spaces: "1"
+    });
+
+    return worker;
 }
 
 function prepareImage() {
@@ -58,25 +114,15 @@ function prepareImage() {
     const height = camera.videoHeight;
 
     if (!width || !height) {
-        throw new Error("A câmera ainda não disponibilizou uma imagem.");
+        throw new Error("A imagem da câmera ainda não está disponível.");
     }
 
-    const scale = Math.min(1.5, 1600 / width);
-    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
 
-    canvas.width = Math.max(1, Math.round(width * scale));
-    canvas.height = Math.max(1, Math.round(height * scale));
+    ctx.drawImage(camera, 0, 0, width, height);
 
-    const context = canvas.getContext("2d", {
-        willReadFrequently: true
-    });
-
-    context.drawImage(camera, 0, 0, canvas.width, canvas.height);
-
-    const image = context.getImageData(
-        0, 0, canvas.width, canvas.height
-    );
-
+    const image = ctx.getImageData(0, 0, width, height);
     const pixels = image.data;
 
     for (let i = 0; i < pixels.length; i += 4) {
@@ -85,360 +131,143 @@ function prepareImage() {
             0.587 * pixels[i + 1] +
             0.114 * pixels[i + 2];
 
-        const adjusted = Math.max(
+        const contrast = Math.max(
             0,
-            Math.min(255, (gray - 128) * 1.15 + 128)
+            Math.min(255, (gray - 128) * 1.25 + 128)
         );
 
-        pixels[i] = adjusted;
-        pixels[i + 1] = adjusted;
-        pixels[i + 2] = adjusted;
+        pixels[i] = contrast;
+        pixels[i + 1] = contrast;
+        pixels[i + 2] = contrast;
     }
 
-    context.putImageData(image, 0, 0);
-    return canvas;
+    ctx.putImageData(image, 0, 0);
 }
 
-async function initializeOCR() {
-    if (ocrWorker) return ocrWorker;
+function speak(text) {
+    if (!("speechSynthesis" in window)) return;
 
-    if (!window.Tesseract) {
-        throw new Error("Tesseract.js não foi carregado.");
-    }
+    const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
 
-    // Impede inicializações simultâneas do mesmo worker.
-    if (!workerPromise) {
-        statusTitle.textContent = "Preparando leitura";
-        statusText.textContent =
-            "Carregando os modelos de reconhecimento...";
-
-        workerPromise = (async () => {
-            const worker = await window.Tesseract.createWorker("por+eng");
-
-            await worker.setParameters({
-                tessedit_pageseg_mode: "6",
-                preserve_interword_spaces: "1"
-            });
-
-            ocrWorker = worker;
-            return worker;
-        })().catch(error => {
-            workerPromise = null;
-            throw error;
-        });
-    }
-
-    return workerPromise;
-}
-
-function speakText(text) {
-    if (!("speechSynthesis" in window)) {
-        statusText.textContent =
-            "A leitura por voz não é suportada neste navegador.";
-        return;
-    }
-
-    const cleanText = text.trim();
-    const normalized = normalizeText(cleanText);
-
-    if (normalized.length < 4) return;
-    if (normalized === lastSpokenText) return;
-
-    // Não interrompe uma fala que já está em andamento.
+    if (normalized.length < 3 || normalized === lastSpoken) return;
     if (window.speechSynthesis.speaking) return;
 
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = detectLanguage(cleanText);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "pt-BR";
+    utterance.rate = 0.95;
 
-    utterance.onstart = () => {
-        if (readingEnabled) {
-            statusTitle.textContent = "Lendo texto";
-            statusText.textContent = "Reproduzindo o texto reconhecido.";
-        }
-    };
-
-    utterance.onend = () => {
-        if (readingEnabled) {
-            statusTitle.textContent = "Leitura ativa";
-            statusText.textContent = "Procurando novo texto...";
-        }
-    };
-
-    utterance.onerror = event => {
-        console.error("Erro na síntese de voz:", event.error);
-
-        if (readingEnabled) {
-            statusText.textContent =
-                "A voz falhou. Verifique o áudio e o navegador.";
-        }
-    };
-
-    // Registra o texto somente quando ele for enviado à síntese.
-    lastSpokenText = normalized;
+    lastSpoken = normalized;
     window.speechSynthesis.speak(utterance);
 }
 
-function scheduleRecognition(session, delay = 1500) {
-    clearTimeout(readTimer);
+async function recognizeText() {
+    if (!cameraActive || !readingEnabled || processing) return;
 
-    if (!readingEnabled || session !== readingSession) return;
-
-    readTimer = setTimeout(() => {
-        recognizeFrame(session);
-    }, delay);
-}
-
-async function recognizeFrame(session) {
-    if (!readingEnabled || session !== readingSession) return;
-
-    // Se a análise anterior ainda estiver ocupada, tenta novamente.
-    if (ocrBusy) {
-        scheduleRecognition(session, 500);
-        return;
-    }
-
-    if (!camera.videoWidth || camera.readyState < 2) {
-        statusTitle.textContent = "Aguardando câmera";
-        statusText.textContent = "Esperando a próxima imagem...";
-        scheduleRecognition(session, 700);
-        return;
-    }
-
-    ocrBusy = true;
+    processing = true;
 
     try {
-        const worker = await initializeOCR();
+        const ocr = await initializeOCR();
 
-        if (!readingEnabled || session !== readingSession) return;
+        if (!cameraActive || !readingEnabled) return;
 
-        const canvas = prepareImage();
-        const result = await worker.recognize(canvas);
+        prepareImage();
 
-        if (!readingEnabled || session !== readingSession) return;
-
+        const result = await ocr.recognize(canvas);
         const text = result.data.text.trim();
-        const confidence = Number(result.data.confidence) || 0;
-        const normalized = normalizeText(text);
+        const confidence = result.data.confidence;
 
-        if (normalized.length < 2) {
-            candidateText = "";
-            candidateCount = 0;
+        console.log("Texto:", text, "| Confiança:", confidence);
 
-            statusTitle.textContent = "Procurando texto";
-            statusText.textContent =
-                "Aproxime a câmera de um texto bem iluminado.";
-
-            scheduleRecognition(session, 1000);
-            return;
+        if (ocrText) {
+            ocrText.textContent = text || "Nenhum texto detectado.";
         }
 
-        // Exibe o texto mesmo quando a confiança for baixa.
-        ocrResult.classList.add("visible");
-        ocrText.textContent =
-            `${text}\n\nConfiança estimada do OCR: ${Math.round(confidence)}%`;
-
-        // Limite reduzido para não descartar tantas leituras.
-        // O valor é apenas um filtro experimental, não uma garantia.
-        if (confidence < 25) {
-            candidateText = "";
-            candidateCount = 0;
-
-            statusTitle.textContent = "Reconhecimento incerto";
-            statusText.textContent =
-                "Texto encontrado, mas a leitura pode conter erros.";
-
-            scheduleRecognition(session, 1200);
-            return;
+        if (ocrResult) {
+            ocrResult.hidden = false;
         }
 
-        if (normalized === candidateText) {
-            candidateCount++;
+        if (text.length >= 3 && confidence >= 25) {
+            const normalized = text
+                .toLowerCase()
+                .replace(/\s+/g, " ")
+                .trim();
+
+            if (normalized === lastCandidate) {
+                candidateCount++;
+            } else {
+                lastCandidate = normalized;
+                candidateCount = 1;
+            }
+
+            setStatus(
+                "Texto detectado",
+                `Confiança do OCR: ${Math.round(confidence)}%`
+            );
+
+            if (candidateCount >= 2) {
+                speak(text);
+                candidateCount = 0;
+            }
         } else {
-            candidateText = normalized;
-            candidateCount = 1;
-        }
-
-        statusTitle.textContent = "Texto identificado";
-        statusText.textContent =
-            `Confiança estimada: ${Math.round(confidence)}%.`;
-
-        // Duas capturas semelhantes antes de falar.
-        if (candidateCount >= 2) {
-            speakText(text);
+            lastCandidate = "";
+            candidateCount = 0;
+            setStatus(
+                "Procurando texto...",
+                "Aproxime a câmera de um texto bem iluminado."
+            );
         }
 
     } catch (error) {
-        console.error("Erro no OCR:", error);
-
-        if (readingEnabled && session === readingSession) {
-            statusTitle.textContent = "Falha no reconhecimento";
-            statusText.textContent =
-                `${error.message || "Erro desconhecido"}. Verifique a conexão e tente novamente.`;
-        }
+        console.error("Erro no reconhecimento:", error);
+        setStatus("Erro na leitura", "Verifique o console para ver os detalhes.");
     } finally {
-        ocrBusy = false;
+        processing = false;
 
-        // Agenda a próxima análise mesmo após um retorno antecipado.
-        scheduleRecognition(session, 1500);
+        if (cameraActive && readingEnabled) {
+            setTimeout(recognizeText, 700);
+        }
     }
 }
 
-start.addEventListener("click", async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-        statusTitle.textContent = "Câmera indisponível";
-        statusText.textContent =
-            "Acesse o site por HTTPS ou localhost.";
-        return;
-    }
+startButton.addEventListener("click", activateCamera);
 
-    start.disabled = true;
+stopButton.addEventListener("click", stopCamera);
 
-    try {
-        const newStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: "environment" } },
-            audio: false
-        });
+readToggle.addEventListener("change", async () => {
+    readingEnabled = readToggle.checked;
 
-        stream = newStream;
-        camera.srcObject = stream;
-        await camera.play();
+    if (readingEnabled) {
+        if (!cameraActive) {
+            readingEnabled = false;
+            readToggle.checked = false;
 
-        viewport.classList.add("on");
-        document.body.classList.add("camera-mode");
-
-        statusTitle.textContent = "Câmera ativa";
-        statusText.textContent = "Ative a leitura para reconhecer textos.";
-
-        cameraLabel.textContent = "CAM 01 · ATIVA";
-        badgeText.textContent = "CÂMERA ATIVA";
-        dot.classList.add("active");
-
-        start.textContent = "Câmera ativada";
-        stop.disabled = false;
-
-    } catch (error) {
-        console.error("Erro ao ativar câmera:", error);
-
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
+            setStatus(
+                "Ative a câmera primeiro",
+                "Depois, habilite a leitura."
+            );
+            return;
         }
 
-        stream = null;
-        camera.srcObject = null;
-
-        const messages = {
-            NotAllowedError: "Permita o acesso à câmera nas configurações do navegador.",
-            NotFoundError: "Nenhuma câmera foi encontrada.",
-            NotReadableError: "A câmera pode estar sendo usada por outro aplicativo."
-        };
-
-        statusTitle.textContent = "Não foi possível iniciar";
-        statusText.textContent =
-            messages[error.name] || "Verifique as permissões da câmera.";
-
-        start.disabled = false;
-        start.textContent = "◎  Ativar câmera";
-    }
-});
-
-readToggle.addEventListener("click", async () => {
-    if (readingEnabled) {
-        readingEnabled = false;
-        readingSession++;
-
-        clearTimeout(readTimer);
-        window.speechSynthesis?.cancel();
-
-        candidateText = "";
+        lastSpoken = "";
+        lastCandidate = "";
         candidateCount = 0;
 
-        readToggle.textContent = "▤ Ativar leitura";
-        readToggle.classList.remove("reading");
-        readToggle.setAttribute("aria-pressed", "false");
+        setStatus("Iniciando leitura...", "Procurando texto na imagem.");
+        recognizeText();
 
-        statusTitle.textContent = "Leitura desativada";
-        statusText.textContent = "A câmera continua ativa.";
-        return;
-    }
+    } else {
+        window.speechSynthesis.cancel();
 
-    if (!stream || !camera.videoWidth) {
-        statusTitle.textContent = "Ative a câmera primeiro";
-        statusText.textContent = "Ligue a câmera antes de iniciar a leitura.";
-        return;
-    }
-
-    readingEnabled = true;
-    readingSession++;
-
-    const session = readingSession;
-
-    candidateText = "";
-    candidateCount = 0;
-    lastSpokenText = "";
-
-    clearTimeout(readTimer);
-    window.speechSynthesis?.cancel();
-
-    readToggle.textContent = "■ Desativar leitura";
-    readToggle.classList.add("reading");
-    readToggle.setAttribute("aria-pressed", "true");
-
-    ocrResult.classList.add("visible");
-    ocrText.textContent = "Preparando reconhecimento...";
-
-    recognizeFrame(session);
-});
-
-stop.addEventListener("click", () => {
-    readingEnabled = false;
-    readingSession++;
-
-    clearTimeout(readTimer);
-    window.speechSynthesis?.cancel();
-
-    candidateText = "";
-    candidateCount = 0;
-    lastSpokenText = "";
-
-    readToggle.textContent = "▤ Ativar leitura";
-    readToggle.classList.remove("reading");
-    readToggle.setAttribute("aria-pressed", "false");
-
-    ocrResult.classList.remove("visible");
-    ocrText.textContent = "Aguardando texto...";
-
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-    }
-
-    stream = null;
-    camera.srcObject = null;
-
-    viewport.classList.remove("on");
-    document.body.classList.remove("camera-mode");
-
-    statusTitle.textContent = "Sistema em espera";
-    statusText.textContent = "A câmera está desligada.";
-
-    cameraLabel.textContent = "CAM 01 · INATIVA";
-    badgeText.textContent = "SISTEMA PRONTO";
-    dot.classList.remove("active");
-
-    start.disabled = false;
-    start.textContent = "◎  Ativar câmera";
-    stop.disabled = true;
-});
-
-window.addEventListener("pagehide", () => {
-    readingEnabled = false;
-    readingSession++;
-
-    clearTimeout(readTimer);
-    window.speechSynthesis?.cancel();
-
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        setStatus(
+            cameraActive ? "Câmera ativa" : "Câmera desligada",
+            "Leitura pausada."
+        );
     }
 });
+
+if (ocrResult) {
+    ocrResult.hidden = false;
+}
+
+setStatus("Sistema pronto", "Ative a câmera para começar.");
+setBadge("AGUARDANDO");
