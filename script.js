@@ -22,9 +22,9 @@ let readingEnabled = false;
 let processing = false;
 
 let lastSpoken = "";
-let lastCandidate = "";
-let candidateCount = 0;
 let recognitionTimer = null;
+let speechQueue = [];
+let isSpeaking = false;
 
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
@@ -70,16 +70,14 @@ async function activateCamera() {
     setBadge("CONECTANDO");
 
     try {
-        const newStream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
             video: {
                 facingMode: { ideal: "environment" }
             },
             audio: false
         });
 
-        stream = newStream;
         camera.srcObject = stream;
-
         await camera.play();
 
         cameraActive = true;
@@ -118,7 +116,12 @@ function stopCamera() {
     clearTimeout(recognitionTimer);
     recognitionTimer = null;
 
-    window.speechSynthesis?.cancel();
+    speechQueue = [];
+    isSpeaking = false;
+
+    if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+    }
 
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -139,12 +142,9 @@ function stopCamera() {
         "Ativa a câmera para começar."
     );
 
-    if (ocrText) {
-        ocrText.textContent = "Aguardando texto...";
-    }
+    ocrText.textContent = "Aguardando texto...";
+    ocrResult.classList.remove("visible");
 
-    lastCandidate = "";
-    candidateCount = 0;
     lastSpoken = "";
 }
 
@@ -183,40 +183,17 @@ function prepareImage() {
     const height = camera.videoHeight;
 
     if (!width || !height) {
-        throw new Error("A imagem da câmera ainda não está disponível.");
+        throw new Error(
+            "A imagem da câmera ainda não está disponível."
+        );
     }
 
-    // Redimensiona imagens muito grandes para reduzir o processamento.
     const scale = Math.min(1, 1280 / width);
 
     canvas.width = Math.round(width * scale);
     canvas.height = Math.round(height * scale);
 
     ctx.drawImage(camera, 0, 0, canvas.width, canvas.height);
-
-    const image = ctx.getImageData(
-        0, 0, canvas.width, canvas.height
-    );
-
-    const pixels = image.data;
-
-    for (let i = 0; i < pixels.length; i += 4) {
-        const gray =
-            0.299 * pixels[i] +
-            0.587 * pixels[i + 1] +
-            0.114 * pixels[i + 2];
-
-        const contrast = Math.max(
-            0,
-            Math.min(255, (gray - 128) * 1.25 + 128)
-        );
-
-        pixels[i] = contrast;
-        pixels[i + 1] = contrast;
-        pixels[i + 2] = contrast;
-    }
-
-    ctx.putImageData(image, 0, 0);
 }
 
 function normalizeText(text) {
@@ -229,7 +206,7 @@ function normalizeText(text) {
 function speak(text) {
     if (!("speechSynthesis" in window)) {
         setStatus(
-            "Leitura sem áudio",
+            "Áudio indisponível",
             "Este navegador não oferece síntese de voz."
         );
         return;
@@ -237,32 +214,69 @@ function speak(text) {
 
     const normalized = normalizeText(text);
 
-    if (normalized.length < 3 || normalized === lastSpoken) {
+    if (!normalized || normalized === lastSpoken) {
         return;
     }
 
-    if (window.speechSynthesis.speaking) {
-        return;
-    }
+    lastSpoken = normalized;
 
+    // Evita enfileirar repetidamente o mesmo texto.
+    // Se já houver uma fala em andamento, guarda a nova.
+    speechQueue = speechQueue.filter(
+        item => normalizeText(item) !== normalized
+    );
+
+    speechQueue.push(text);
+
+    processSpeechQueue();
+}
+
+function processSpeechQueue() {
+    if (!readingEnabled || !cameraActive) return;
+    if (isSpeaking || speechQueue.length === 0) return;
+
+    if (!("speechSynthesis" in window)) return;
+
+    const text = speechQueue.shift();
     const utterance = new SpeechSynthesisUtterance(text);
+
     utterance.lang = "pt-BR";
     utterance.rate = 0.95;
+    utterance.pitch = 1;
+
+    isSpeaking = true;
+
+    utterance.onstart = () => {
+        setStatus("Lendo em voz alta", text);
+    };
 
     utterance.onend = () => {
+        isSpeaking = false;
+
         if (readingEnabled && cameraActive) {
             setStatus(
                 "Leitura ativa",
                 "Continuando a procurar novos textos."
             );
+            processSpeechQueue();
         }
     };
 
     utterance.onerror = event => {
         console.error("Erro na síntese de voz:", event);
+
+        isSpeaking = false;
+
+        if (readingEnabled && cameraActive) {
+            setStatus(
+                "Erro no áudio",
+                "Verifique o volume e o suporte de voz do navegador."
+            );
+        }
+
+        processSpeechQueue();
     };
 
-    lastSpoken = normalized;
     window.speechSynthesis.speak(utterance);
 }
 
@@ -287,6 +301,7 @@ async function recognizeText() {
         prepareImage();
 
         const result = await ocr.recognize(canvas);
+
         if (!cameraActive || !readingEnabled) return;
 
         const text = result.data.text.trim();
@@ -302,33 +317,17 @@ async function recognizeText() {
         ocrText.textContent = text || "Nenhum texto detectado.";
         ocrResult.classList.add("visible");
 
-        if (text.length >= 3 && confidence >= 25) {
-            const normalized = normalizeText(text);
-
-            if (normalized === lastCandidate) {
-                candidateCount++;
-            } else {
-                lastCandidate = normalized;
-                candidateCount = 1;
-            }
-
+        if (text.length > 0) {
             setStatus(
                 "Texto detectado",
                 `Confiança do OCR: ${Math.round(confidence)}%.`
             );
 
-            // Exige duas detecções semelhantes para reduzir erros.
-            if (candidateCount >= 2) {
-                speak(text);
-                candidateCount = 0;
-            }
+            speak(text);
         } else {
-            lastCandidate = "";
-            candidateCount = 0;
-
             setStatus(
                 "Procurando texto...",
-                "Aproxima a câmera de um texto bem iluminado."
+                "Aponte a câmera para um texto."
             );
         }
     } catch (error) {
@@ -367,10 +366,24 @@ function toggleReading() {
 
     if (readingEnabled) {
         lastSpoken = "";
-        lastCandidate = "";
-        candidateCount = 0;
+        speechQueue = [];
+        isSpeaking = false;
 
         readToggle.textContent = "Pausar leitura";
+
+        // Testa a voz diretamente após o toque do usuário.
+        if ("speechSynthesis" in window) {
+            window.speechSynthesis.cancel();
+
+            const testeVoz = new SpeechSynthesisUtterance(
+                "Leitura ativada."
+            );
+
+            testeVoz.lang = "pt-BR";
+            testeVoz.rate = 0.95;
+
+            window.speechSynthesis.speak(testeVoz);
+        }
 
         setStatus(
             "Iniciando leitura...",
@@ -382,7 +395,12 @@ function toggleReading() {
         clearTimeout(recognitionTimer);
         recognitionTimer = null;
 
-        window.speechSynthesis.cancel();
+        speechQueue = [];
+        isSpeaking = false;
+
+        if ("speechSynthesis" in window) {
+            window.speechSynthesis.cancel();
+        }
 
         readToggle.textContent = "▤ Ativar leitura";
 
