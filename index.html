@@ -1,0 +1,563 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#080d16">
+
+    <title>NewVis | Visão inteligente</title>
+
+    <style>
+        :root {
+            --bg: #080d16;
+            --panel: #101a29;
+            --cyan: #55f2df;
+            --blue: #61a8ff;
+            --text: #edf7ff;
+            --muted: #8da1b8;
+            --border: rgba(132, 185, 220, .15);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(ellipse at 50% 0%,
+                    rgba(29, 111, 137, .19), transparent 50%),
+                var(--bg);
+            color: var(--text);
+            font-family: Inter, system-ui, Arial, sans-serif;
+        }
+
+        .app {
+            width: min(100% - 16px, 900px);
+            margin: auto;
+            padding: 20px 0 36px;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 32px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            display: grid;
+            place-items: center;
+            width: 44px;
+            height: 44px;
+            border: 1px solid rgba(85, 242, 223, .45);
+            border-radius: 14px;
+            color: var(--cyan);
+            font-size: 23px;
+            box-shadow: 0 0 25px rgba(85, 242, 223, .08);
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: 2px;
+        }
+
+        .brand p {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .badge {
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            padding: 8px 11px;
+            color: var(--muted);
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        .dot {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            margin-right: 6px;
+            border-radius: 50%;
+            background: #8292a6;
+        }
+
+        .dot.active {
+            background: var(--cyan);
+            box-shadow: 0 0 10px var(--cyan);
+        }
+
+        .intro {
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            color: var(--cyan);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .intro h2 {
+            margin: 10px 0;
+            font-size: clamp(28px, 6vw, 39px);
+            letter-spacing: -1.5px;
+            line-height: 1.12;
+        }
+
+        .intro h2 span {
+            color: var(--cyan);
+        }
+
+        .intro p {
+            max-width: 460px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .camera-card {
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            background: linear-gradient(145deg, #142235, #0b111c);
+            box-shadow: 0 18px 60px rgba(0, 0, 0, .25);
+        }
+
+        .camera-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 17px 18px;
+            border-bottom: 1px solid var(--border);
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        .camera-head span:last-child {
+            color: var(--muted);
+        }
+
+        .viewport {
+            position: relative;
+            display: grid;
+            place-items: center;
+            width: 100%;
+            aspect-ratio: 3 / 4;
+            min-height: 380px;
+            max-height: 75vh;
+            overflow: hidden;
+            background:
+                linear-gradient(rgba(85, 242, 223, .035) 1px,
+                    transparent 1px),
+                linear-gradient(90deg, rgba(85, 242, 223, .035) 1px,
+                    transparent 1px),
+                #090f19;
+            background-size: 26px 26px;
+        }
+
+        video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .viewport.on video {
+            display: block;
+        }
+
+        .scanline {
+            display: none;
+            position: absolute;
+            z-index: 2;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg,
+                transparent, var(--cyan), transparent);
+            box-shadow: 0 0 15px var(--cyan);
+            animation: scan 4s linear infinite;
+            pointer-events: none;
+        }
+
+        .viewport.on .scanline {
+            display: block;
+        }
+
+        @keyframes scan {
+            from { top: 0; }
+            to { top: 100%; }
+        }
+
+        .corners {
+            position: absolute;
+            z-index: 3;
+            inset: 16px;
+            pointer-events: none;
+            background:
+                linear-gradient(var(--cyan), var(--cyan)) left top / 25px 2px no-repeat,
+                linear-gradient(var(--cyan), var(--cyan)) left top / 2px 25px no-repeat,
+                linear-gradient(var(--cyan), var(--cyan)) right top / 25px 2px no-repeat,
+                linear-gradient(var(--cyan), var(--cyan)) right top / 2px 25px no-repeat,
+                linear-gradient(var(--cyan), var(--cyan)) left bottom / 25px 2px no-repeat,
+                linear-gradient(var(--cyan), var(--cyan)) left bottom / 2px 25px no-repeat,
+                linear-gradient(var(--cyan), var(--cyan)) right bottom / 25px 2px no-repeat,
+                linear-gradient(var(--cyan), var(--cyan)) right bottom / 2px 25px no-repeat;
+            opacity: .8;
+        }
+
+        .placeholder {
+            text-align: center;
+            padding: 20px;
+            color: var(--muted);
+        }
+
+        .lens-icon {
+            display: grid;
+            place-items: center;
+            width: 74px;
+            height: 74px;
+            margin: 0 auto 18px;
+            border: 1px solid rgba(85, 242, 223, .35);
+            border-radius: 50%;
+            color: var(--cyan);
+            font-size: 32px;
+            box-shadow: 0 0 35px rgba(85, 242, 223, .08),
+                inset 0 0 20px rgba(85, 242, 223, .06);
+        }
+
+        .placeholder strong {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .placeholder p {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .viewport.on .placeholder {
+            display: none;
+        }
+
+        .camera-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .status {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .status strong {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 12px;
+            padding: 13px 17px;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform .2s, opacity .2s;
+        }
+
+        button:active {
+            transform: scale(.97);
+        }
+
+        button:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+        #start {
+            color: #061513;
+            background: var(--cyan);
+            box-shadow: 0 0 22px rgba(85, 242, 223, .12);
+        }
+
+        #stop {
+            color: var(--text);
+            background: #263448;
+        }
+
+        .modules {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .module {
+            padding: 15px 12px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: rgba(16, 26, 41, .7);
+        }
+
+        .module .symbol {
+            margin-bottom: 12px;
+            color: var(--cyan);
+            font-size: 20px;
+        }
+
+        .module strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .module p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 10px;
+            line-height: 1.5;
+        }
+
+        .notice {
+            margin-top: 20px;
+            color: #71859b;
+            font-size: 11px;
+            line-height: 1.7;
+            text-align: center;
+        }
+
+        @media (max-width: 420px) {
+            .app {
+                width: calc(100% - 22px);
+                padding-top: 20px;
+            }
+
+            header {
+                margin-bottom: 26px;
+            }
+
+            .badge {
+                font-size: 9px;
+                padding: 7px;
+            }
+
+            .camera-footer {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .camera-footer button {
+                width: 100%;
+            }
+
+            .modules {
+                gap: 7px;
+            }
+
+            .module {
+                padding: 12px 9px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="app">
+        <header>
+            <div class="brand">
+                <div class="logo">◉</div>
+                <div>
+                    <h1>NewVis</h1>
+                    <p>Assistive Intelligence</p>
+                </div>
+            </div>
+
+            <div class="badge">
+                <span class="dot" id="dot"></span>
+                <span id="badgeText">SISTEMA PRONTO</span>
+            </div>
+        </header>
+
+        <section class="intro">
+            <div class="eyebrow">Tecnologia assistiva</div>
+            <h2>Uma nova forma de<br><span>perceber o mundo.</span></h2>
+            <p>
+                Uma experiência experimental de visão computacional
+                para ampliar o acesso à informação.
+            </p>
+        </section>
+
+        <section class="camera-card">
+            <div class="camera-head">
+                <span>VISOR INTELIGENTE</span>
+                <span id="cameraLabel">CAM 01 · INATIVA</span>
+            </div>
+
+            <div class="viewport" id="viewport">
+                <video id="camera" autoplay playsinline muted></video>
+                <div class="scanline"></div>
+                <div class="corners"></div>
+
+                <div class="placeholder">
+                    <div class="lens-icon">◎</div>
+                    <strong>Aguardando inicialização</strong>
+                    <p>Ative a câmera para iniciar<br>o visor experimental.</p>
+                </div>
+            </div>
+
+            <div class="camera-footer">
+                <div class="status" aria-live="polite">
+                    <strong id="statusTitle">Sistema em espera</strong>
+                    <span id="statusText">A câmera está desligada.</span>
+                </div>
+
+                <button id="start">◎ &nbsp; Ativar câmera</button>
+                <button id="stop" disabled>Desativar</button>
+            </div>
+        </section>
+
+        <section class="modules">
+            <article class="module">
+                <div class="symbol">⌕</div>
+                <strong>Visão</strong>
+                <p>Base para futura detecção de rostos e objetos.</p>
+            </article>
+
+            <article class="module">
+                <div class="symbol">▤</div>
+                <strong>Informação</strong>
+                <p>Interface preparada para apresentar descrições.</p>
+            </article>
+
+            <article class="module">
+                <div class="symbol">♫</div>
+                <strong>Acessibilidade</strong>
+                <p>Base para recursos de voz e leitura de textos.</p>
+            </article>
+        </section>
+
+        <p class="notice">
+            Protótipo experimental do projeto NewVis.<br>
+            A câmera só é ativada mediante sua autorização.
+            Nesta versão, ainda não há reconhecimento por inteligência artificial.
+        </p>
+    </main>
+
+    <script>
+        const camera = document.getElementById("camera");
+        const viewport = document.getElementById("viewport");
+        const statusTitle = document.getElementById("statusTitle");
+        const statusText = document.getElementById("statusText");
+        const cameraLabel = document.getElementById("cameraLabel");
+        const badgeText = document.getElementById("badgeText");
+        const dot = document.getElementById("dot");
+        const start = document.getElementById("start");
+        const stop = document.getElementById("stop");
+
+        let stream = null;
+
+        start.addEventListener("click", async () => {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                statusTitle.textContent = "Câmera indisponível";
+                statusText.textContent =
+                    "Abra o site por HTTPS e tente novamente.";
+                return;
+            }
+
+            start.disabled = true;
+            statusTitle.textContent = "Solicitando acesso...";
+            statusText.textContent =
+                "Autorize a câmera quando o navegador perguntar.";
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: "environment" } },
+                    audio: false
+                });
+
+                camera.srcObject = stream;
+                await camera.play();
+
+                viewport.classList.add("on");
+                statusTitle.textContent = "Câmera ativa";
+                statusText.textContent =
+                    "Transmissão de vídeo em funcionamento.";
+                cameraLabel.textContent = "CAM 01 · ATIVA";
+                badgeText.textContent = "CÂMERA ATIVA";
+                dot.classList.add("active");
+
+                start.textContent = "Câmera ativada";
+                stop.disabled = false;
+            } catch (erro) {
+                let mensagem = "Não foi possível acessar a câmera.";
+
+                if (erro.name === "NotAllowedError") {
+                    mensagem = "Permissão negada. Autorize a câmera no navegador.";
+                } else if (erro.name === "NotFoundError") {
+                    mensagem = "Nenhuma câmera compatível foi encontrada.";
+                } else if (erro.name === "NotReadableError") {
+                    mensagem = "A câmera pode estar sendo usada por outro aplicativo.";
+                }
+
+                statusTitle.textContent = "Não foi possível iniciar";
+                statusText.textContent = mensagem;
+                start.disabled = false;
+            }
+        });
+
+        stop.addEventListener("click", () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+
+            stream = null;
+            camera.srcObject = null;
+            viewport.classList.remove("on");
+
+            statusTitle.textContent = "Sistema em espera";
+            statusText.textContent = "A câmera está desligada.";
+            cameraLabel.textContent = "CAM 01 · INATIVA";
+            badgeText.textContent = "SISTEMA PRONTO";
+            dot.classList.remove("active");
+
+            start.disabled = false;
+            start.textContent = "◎  Ativar câmera";
+            stop.disabled = true;
+        });
+    </script>
+</body>
+</html>
