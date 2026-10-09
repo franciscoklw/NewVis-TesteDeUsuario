@@ -1,0 +1,96 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NewVis - Teste de Câmera</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #101820;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #55e6c1;
+        }
+
+        video {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 15px;
+            background: #263238;
+        }
+
+        button {
+            margin: 10px;
+            padding: 14px 22px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #iniciar {
+            background: #55e6c1;
+        }
+
+        #parar {
+            background: #ff7675;
+        }
+
+        #status {
+            color: #dfe6e9;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>NewVis</h1>
+    <p>Simulador de acessibilidade inteligente</p>
+
+    <video id="camera" autoplay playsinline></video>
+
+    <p id="status">Câmera desligada.</p>
+
+    <button id="iniciar">Ativar câmera</button>
+    <button id="parar">Desativar câmera</button>
+
+    <script>
+        const camera = document.getElementById("camera");
+        const status = document.getElementById("status");
+
+        let stream = null;
+
+        document.getElementById("iniciar").addEventListener("click", async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "environment"
+                    },
+                    audio: false
+                });
+
+                camera.srcObject = stream;
+                status.textContent = "Câmera ativada com sucesso!";
+            } catch (erro) {
+                status.textContent = "Não foi possível acessar a câmera: " + erro.message;
+            }
+        });
+
+        document.getElementById("parar").addEventListener("click", () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                camera.srcObject = null;
+                stream = null;
+            }
+
+            status.textContent = "Câmera desligada.";
+        });
+    </script>
+</body>
+</html>
